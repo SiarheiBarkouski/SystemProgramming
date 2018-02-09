@@ -1,0 +1,37 @@
+﻿<Window x:Class="CopyFiles.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CopyFiles"
+        mc:Ignorable="d"
+        Title="Copy Master" Height="170" Width="400">
+    <Window.Resources>
+        <local:ViewModel x:Key="VM"></local:ViewModel>
+    </Window.Resources>
+        
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+            <ColumnDefinition Width="2*"></ColumnDefinition>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <Label Margin="10px" Grid.Column="0" Grid.Row="0" Content="Откуда" HorizontalContentAlignment="Center"></Label>
+        <Label Margin="10px" Grid.Column="0" Grid.Row="1" Content="Куда" HorizontalContentAlignment="Center"></Label>
+
+        <TextBox Margin="10px" Grid.Column="1" Grid.Row="0" Text="{Binding Source={StaticResource VM}, Path=SourcePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <TextBox Margin="10px" Grid.Column="1" Grid.Row="1" Text="{Binding Source={StaticResource VM}, Path=DestinationPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+
+        <ProgressBar Margin="10px" Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Value="{Binding Source={StaticResource VM}, Path=Progress, Mode=OneWay}"></ProgressBar>
+
+        <Button Margin="10px" Grid.Column="2" Grid.Row="0" Content="Файл..." Command="{Binding Source={StaticResource VM}, Path=SetSourcePathCommand}"></Button>
+        <Button Margin="10px" Grid.Column="2" Grid.Row="1" Content="Файл..." Command="{Binding Source={StaticResource VM}, Path=SetDestPathCommand}"></Button>
+        <Button Margin="10px" Grid.Column="2" Grid.Row="2" Content="Копировать" Command="{Binding Source={StaticResource VM}, Path=CopyCommand}"></Button>
+    </Grid>
+</Window>
