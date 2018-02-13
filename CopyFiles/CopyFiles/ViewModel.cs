@@ -13,26 +13,29 @@ namespace CopyFiles
 {
     class ViewModel : ViewModelBase
     {
-        private readonly Progress<int> _progress;
+        private readonly Progress<double> _progress;
+        private int progress;
         private string _sourcePath = String.Empty;
         private string _destinationPath = String.Empty;
-        private double _progress1;
-        private double _progress2;
-        private int _totalProgress;
+
 
         public ViewModel()
         {
-            _progress = new Progress<int>();
-            _progress.ProgressChanged += (s, e) => { Progress = e; };
+            _progress = new Progress<double>();
+            _progress.ProgressChanged += (s, e) =>
+            {
+                var val = (int)(e * 100);
+                Progress = val == 100 ? 0 : val;
+            };
         }
 
         #region Properties
         public int Progress
         {
-            get => _totalProgress;
+            get => progress;
             private set
             {
-                _totalProgress = value;
+                progress = value;
                 OnPropertyChanged();
             }
         }
@@ -68,7 +71,7 @@ namespace CopyFiles
                 return _copyCommand ??
                        (_copyCommand = new RelayCommand
                            (
-                           obj => new Thread(Copy).Start(),
+                           obj => new Thread(StartCopy).Start(),
                            obj => !String.IsNullOrWhiteSpace(SourcePath) && !String.IsNullOrWhiteSpace(DestinationPath)
                            )
                         );
@@ -112,59 +115,37 @@ namespace CopyFiles
         #endregion
 
         #region Methods
-        private List<List<byte>> ToChunks(List<byte> items, int chunkSize)
-        {
-            var result = new List<List<byte>>();
-            var chunk = new List<byte>(chunkSize);
-            result.Add(chunk);
-            foreach (var item in items)
-            {
-                chunk.Add(item);
-                if (chunk.Count == chunkSize)
-                {
-                    chunk = new List<byte>(chunkSize);
-                    result.Add(chunk);
-                }
-            }
-            return result;
-        }
 
-        private void Copy()
+        private void StartCopy()
         {
             if (File.Exists(SourcePath))
             {
                 if (File.Exists(DestinationPath))
                     File.Delete(DestinationPath);
 
-                var sourceBytesRaw = File.ReadAllBytes(SourcePath);
-                var sourceBytes = ToChunks(sourceBytesRaw.ToList(), 4096);
-
-                new Thread(() => CopyBytes(sourceBytes.Take(sourceBytes.Count / 2).ToList(), 0, sourceBytesRaw.Length,
-                    1, _progress)).Start();
-                new Thread(() => CopyBytes(sourceBytes.Skip(sourceBytes.Count / 2).ToList(), sourceBytes.Count / 2 * 4096,
-                    sourceBytesRaw.Length, 2, _progress)).Start();
-
+                new Thread(() => Copy(_progress)).Start();
             }
         }
-
-        private void CopyBytes(List<List<byte>> array, int startPosition, int totalLength, int threadnumber, IProgress<int> progress)
+        private void Copy(IProgress<double> localprogress)
         {
+            using (var sourceStream = new FileStream(SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096))
             using (var destinationStream = new FileStream(DestinationPath, FileMode.Append, FileAccess.Write, FileShare.Write, 4096))
             {
-                destinationStream.Position = startPosition;
-                foreach (var item in array)
+                byte[] res = new byte[4096];
+
+                while (sourceStream.Position <= sourceStream.Length - 1)
                 {
-                    var length = item.Count();
-                    destinationStream.Write(item.ToArray(), 0, length);
-                    switch (threadnumber)
-                    {
-                        case 1: _progress1 = ((double)destinationStream.Position - startPosition) / totalLength; break;
-                        case 2: _progress2 = ((double)destinationStream.Position - startPosition) / totalLength; break;
-                    }
-                    progress.Report((int)((_progress1 + _progress2) * 100));
+                    var readlength = sourceStream.Position + 4096 <= sourceStream.Length - 1
+                        ? 4096
+                        : sourceStream.Length - sourceStream.Position;
+
+                    sourceStream.Read(res, 0, (int)readlength);
+                    destinationStream.Write(res, 0, (int)readlength);
+                    localprogress.Report((double)sourceStream.Position / sourceStream.Length);
                 }
             }
         }
+
         #endregion
     }
 }
