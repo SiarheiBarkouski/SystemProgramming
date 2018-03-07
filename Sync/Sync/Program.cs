@@ -9,82 +9,70 @@ namespace Sync
 {
     class Program
     {
-
+        private static readonly object _locker1 = new object();
+        private static readonly object _locker2 = new object();
 
         static void Main(string[] args)
         {
-            var counter = 0;
-            var s = new List<long>();
+            var s = new List<int>();
             var r = new List<long>();
-
-            var locker1 = new object();
-            var locker2 = new object();
-
+            int counter = 0;
 
             var a = new Thread(() =>
-                    {
-                        while (true)
-                        {
-                            lock (locker1)
-                            {
-                                s.Add(counter++);
-                            }
-                        }
-                    });
-
-            var b = new Thread(() =>
             {
                 while (true)
                 {
-                    long result;
-                    long count;
-
-                    lock (locker1)
+                    lock (_locker1)
                     {
-                        count = s.Count;
+                        s.Add(++counter);
                     }
+                }
+            });
 
-                    if (count != 0)
-                    {
-                        lock (locker1)
-                        {
-                            result = s.Last() * s.Last();
-                        }
-                        lock (locker2)
-                        {
-                            r.Add(result);
-                        }
-                    }
-                    else
+            var b = new Thread(() =>
+            {
+                int x;
+                while (true)
+                {
+                    if (s.Count == 0)
                         Thread.Sleep(1000);
+                    else
+                    {
+                        lock (_locker1)
+                        {
+                            Thread.Sleep(1500);
+                            lock (_locker2)
+                            {
+                                x = s.Last();
+                                r.Add(x * x);
+                            }
+                        }
+                    }
                 }
             });
 
             var c = new Thread(() =>
             {
+                int x;
                 while (true)
                 {
-                    long result;
-                    long count;
-
-                    lock (locker1)
+                    if (s.Count == 0)
                     {
-                        count = s.Count;
-                    }
-
-                    if (count != 0)
-                    {
-                        lock (locker1)
-                        {
-                            result = s.Last() / 3;
-                        }
-                        lock (locker2)
-                        {
-                            r.Add(result);
-                        }
+                        Thread.Sleep(1000);
                     }
                     else
-                        Thread.Sleep(1000);
+                    {
+                        lock (_locker2)
+                        {
+                            Thread.Sleep(1500);
+                            lock (_locker1)
+                            {
+                                x = s.Last();
+                                r.Add(x / 3);
+                            }
+                        }
+
+                    }
                 }
             });
 
@@ -92,32 +80,28 @@ namespace Sync
             {
                 while (true)
                 {
-                    long count;
-
-                    lock (locker1)
-                    {
-                        count = s.Count;
-                    }
-
-                    if (count != 0)
-                    {
-                        lock (locker1)
-                        {
-                            Console.WriteLine(s.Last());
-                        }
-                    }
-                    else
+                    if (r.Count == 0)
                     {
                         Console.WriteLine("List R is empty.");
                         Thread.Sleep(1000);
                     }
+                    else
+                    {
+                        lock (_locker2)
+                        {
+                            Console.WriteLine(r.Last());
+                        }
+                    }
                 }
             });
 
-            a.Start();
-            b.Start();
-            c.Start();
-            d.Start();
+            new Thread(() =>
+            {
+                a.Start();
+                b.Start();
+                c.Start();
+                d.Start();
+            }).Start();
 
             Console.ReadKey();
         }
